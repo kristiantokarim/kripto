@@ -31,6 +31,9 @@ import crypto.util.BitBuffer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
+import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -88,6 +91,7 @@ public abstract class FeistelCipher extends Cipher {
             throw new IllegalArgumentException("Block size must to be greater than 0.");
         }
         this.nRounds = nRounds;
+        // is this assuming blocksize to be 64?
         this.blockSize = 64;
         this.blockMultiplier = blockSize / 64;
     }
@@ -166,11 +170,27 @@ public abstract class FeistelCipher extends Cipher {
      * <li>If fails to write at the output.</li>
      * </ul>
      *
-     * @see crypto.ciphers.Cipher#encrypt(java.io.InputStream, byte[],
-     * java.io.OutputStream)
      */
     @Override
-    public final void encrypt(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+    public final void encrypt(final InputStream message, final byte[] key, final OutputStream output, final String mode) throws IOException {
+        if (mode.equals("CBC")){
+            encryptCBC(message,key,output);
+        }
+        else if (mode.equals("EBC")){
+            encryptEBC(message,key,output);
+        }
+        else if (mode.equals("CFB")){
+            encryptCFB(message,key,output);
+        }
+        else if (mode.equals("OFB")){
+            encryptOFB(message,key,output);
+        }
+        else if (mode.equals("CTR")){
+            encryptCTR(message,key,output);
+        }
+    }
+
+    private void encryptCBC(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
 
         if (message == null) {
             throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
@@ -191,6 +211,7 @@ public abstract class FeistelCipher extends Cipher {
             while (bytesRead > 0) {
                 BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
                 for (int i = 0 ; i < blockMultiplier ; i++) {
+                    //Is this line assuming the block size will be 64 bit???
                     if (bytesRead < 8) {
                         pad(buffer, bytesRead);
                     }
@@ -201,6 +222,171 @@ public abstract class FeistelCipher extends Cipher {
                         cipherBlock = encryptBlock(readBuffer, keyBufferTemp);
                         output.write(cipherBlock.toByteArray(8));
                     }
+                    bytesRead = message.read(buffer);
+                    if (bytesRead < 0) break;
+                }
+            }
+        }
+    }
+
+    private void encryptEBC(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            BitBuffer cipherBlock = new BitBuffer();
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+            int bytesRead = message.read(buffer);
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+                    //Is this line assuming the block size will be 64 bit???
+                    if (bytesRead < 8) {
+                        pad(buffer, bytesRead);
+                    }
+
+                    try (BitBuffer readBuffer = BitBuffer.valueOf(buffer)) {
+
+                        cipherBlock.close();
+                        cipherBlock = encryptBlock(readBuffer, keyBufferTemp);
+                        output.write(cipherBlock.toByteArray(8));
+                    }
+                    bytesRead = message.read(buffer);
+                    if (bytesRead < 0) break;
+                }
+            }
+        }
+    }
+
+    private void encryptCFB(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            BitBuffer cipherBlock;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+            int bytesRead = message.read(buffer);
+
+            cipherBlock = getIV();
+            recordIV(cipherBlock, output);
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+                    //Is this line assuming the block size will be 64 bit???
+                    if (bytesRead < 8) {
+                        pad(buffer, bytesRead);
+                    }
+
+                    try (BitBuffer readBuffer = BitBuffer.valueOf(buffer)) {
+                        cipherBlock = encryptBlock(cipherBlock, keyBufferTemp);
+                        cipherBlock.xor(readBuffer);
+                        output.write(cipherBlock.toByteArray(8));
+                    }
+                    bytesRead = message.read(buffer);
+                    if (bytesRead < 0) break;
+                }
+            }
+        }
+    }
+
+    private final void encryptOFB(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            BitBuffer cipherBlock;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+            int bytesRead = message.read(buffer);
+
+            cipherBlock = getIV();
+            recordIV(cipherBlock, output);
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+                    //Is this line assuming the block size will be 64 bit???
+                    if (bytesRead < 8) {
+                        pad(buffer, bytesRead);
+                    }
+
+                    try (BitBuffer readBuffer = BitBuffer.valueOf(buffer)) {
+                        cipherBlock = encryptBlock(cipherBlock, keyBufferTemp);
+                        readBuffer.xor(cipherBlock);
+                        output.write(readBuffer.toByteArray(8));
+                    }
+                    bytesRead = message.read(buffer);
+                    if (bytesRead < 0) break;
+                }
+            }
+        }
+    }
+
+    private void encryptCTR(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            byte[] nonce;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+            int bytesRead = message.read(buffer);
+            BigInteger ctr = new BigInteger("0");
+            nonce = getNonce();
+            byte[] nonceCtr = new byte[getBlockSize() / Byte.SIZE];
+            System.arraycopy(nonce,0,nonceCtr,0,nonce.length);
+            recordNonce(nonce, output);
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+                    //Is this line assuming the block size will be 64 bit???
+                    if (bytesRead < 8) {
+                        pad(buffer, bytesRead);
+                    }
+
+                    try (BitBuffer readBuffer = BitBuffer.valueOf(buffer)) {
+                        byte[] ctrArray = ctr.toByteArray();
+                        int startPos = 0;
+                        int length = (getBlockSize() / Byte.SIZE) / 2;
+
+                        if((ctrArray.length) - nonce.length > startPos)
+                            startPos = (ctrArray.length) - nonce.length;
+                        else
+                            length = ctrArray.length;
+
+                        System.arraycopy(ctrArray, startPos, nonceCtr,(getBlockSize() / Byte.SIZE) - length ,length);
+                        BitBuffer cipherBlock = BitBuffer.valueOf(nonceCtr);
+                        cipherBlock = encryptBlock(cipherBlock, keyBufferTemp);
+                        readBuffer.xor(cipherBlock);
+                        output.write(readBuffer.toByteArray(8));
+
+                    }
+                    ctr = ctr.add(BigInteger.ONE);
                     bytesRead = message.read(buffer);
                     if (bytesRead < 0) break;
                 }
@@ -228,11 +414,32 @@ public abstract class FeistelCipher extends Cipher {
      * <li>If fails to write at the output.</li>
      * </ul>
      *
-     * @see crypto.ciphers.Cipher#decrypt(java.io.InputStream, byte[],
-     * java.io.OutputStream)
      */
     @Override
-    public final void decrypt(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+    public final void decrypt(final InputStream message, final byte[] key, final OutputStream output, final String mode) throws IOException {
+        switch (mode) {
+            case "CBC":
+                decryptCBC(message, key, output);
+                break;
+            case "EBC":
+                decryptEBC(message, key, output);
+                break;
+            case "CFB":
+                decryptCFB(message, key, output);
+                break;
+            case "OFB":
+                decryptOFB(message, key, output);
+                break;
+            case "CTR":
+                decryptCTR(message, key, output);
+                break;
+        }
+
+
+    }
+
+
+    private  void decryptCBC(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
 
         if (message == null) {
             throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
@@ -257,6 +464,7 @@ public abstract class FeistelCipher extends Cipher {
                 for (int i = 0 ; i < blockMultiplier ; i++) {
 
                     readBuffer = BitBuffer.valueOf(buffer);
+                    //read message, output the message to buffer, return buffer size
                     bytesAfterUnpadding = bytesRead = message.read(buffer);
 
                     try (BitBuffer decrypted = decryptBlock(readBuffer, keyBufferTemp)) {
@@ -273,6 +481,199 @@ public abstract class FeistelCipher extends Cipher {
             }
 
             plainText.close();
+        }
+    }
+
+
+
+    private void decryptEBC(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+
+            BitBuffer readBuffer;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+
+
+
+            int bytesRead = message.read(buffer);
+            int bytesAfterUnpadding = 0;
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+
+                    readBuffer = BitBuffer.valueOf(buffer);
+                    //read message, output the message to buffer, return buffer size
+                    bytesAfterUnpadding = bytesRead = message.read(buffer);
+
+                    try (BitBuffer plainText = decryptBlock(readBuffer, keyBufferTemp)) {
+                        if (bytesRead <= 0) {
+                            bytesAfterUnpadding = unPad(plainText);
+                        }
+                        output.write(plainText.toByteArray(bytesAfterUnpadding));
+                    }
+                    if(bytesRead < 0) break;
+                }
+            }
+
+        }
+    }
+
+    private void decryptCFB(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            BitBuffer cipherText;
+            BitBuffer readBuffer;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+
+            cipherText = readIV(message);
+
+            int bytesRead = message.read(buffer);
+            int bytesAfterUnpadding = 0;
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+
+                    readBuffer = BitBuffer.valueOf(buffer);
+                    //read message, output the message to buffer, return buffer size
+                    bytesAfterUnpadding = bytesRead = message.read(buffer);
+
+                    try (BitBuffer decrypted = encryptBlock(cipherText, keyBufferTemp)) {
+                        decrypted.xor(readBuffer);
+                        if (bytesRead <= 0) {
+                            bytesAfterUnpadding = unPad(decrypted);
+                        }
+                        output.write(decrypted.toByteArray(bytesAfterUnpadding));
+                        cipherText.close();
+                    }
+                    cipherText = readBuffer;
+                    if(bytesRead < 0) break;
+                }
+            }
+
+            cipherText.close();
+        }
+    }
+
+    private void decryptOFB(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            BitBuffer cipherText;
+            BitBuffer readBuffer;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+
+            cipherText = readIV(message);
+
+            int bytesRead = message.read(buffer);
+            int bytesAfterUnpadding = 0;
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+
+                    readBuffer = BitBuffer.valueOf(buffer);
+                    //read message, output the message to buffer, return buffer size
+                    bytesAfterUnpadding = bytesRead = message.read(buffer);
+
+                    try (BitBuffer decrypted = encryptBlock(cipherText, keyBufferTemp)) {
+                        readBuffer.xor(decrypted);
+                        if (bytesRead <= 0) {
+                            bytesAfterUnpadding = unPad(readBuffer);
+                        }
+                        output.write(readBuffer.toByteArray(bytesAfterUnpadding));
+                        cipherText.close();
+                        cipherText = (BitBuffer) decrypted.clone();
+                    }
+                    if(bytesRead < 0) break;
+                }
+            }
+
+            cipherText.close();
+        }
+    }
+
+    private void decryptCTR(final InputStream message, final byte[] key, final OutputStream output) throws IOException {
+
+        if (message == null) {
+            throw new NullPointerException("Message cannot be encrypted: message is a reference to null.");
+        }
+        if (key == null) {
+            throw new NullPointerException("Message cannot be encrypted: key is a reference to null.");
+        }
+
+        try (BitBuffer keyBuffer = new BitBuffer(key)) {
+
+            byte[] nonce;
+            BitBuffer readBuffer;
+            byte[] buffer = new byte[getBlockSize() / Byte.SIZE];
+
+            nonce = readNonce(message);
+            BigInteger ctr = new BigInteger("0");
+            byte[] nonceCtr = new byte[getBlockSize() / Byte.SIZE];
+            System.arraycopy(nonce,0,nonceCtr,0,nonce.length);
+
+            int bytesRead = message.read(buffer);
+            int bytesAfterUnpadding = 0;
+
+            while (bytesRead > 0) {
+                BitBuffer keyBufferTemp = (BitBuffer) keyBuffer.clone();
+                for (int i = 0 ; i < blockMultiplier ; i++) {
+
+                    readBuffer = BitBuffer.valueOf(buffer);
+                    //read message, output the message to buffer, return buffer size
+                    bytesAfterUnpadding = bytesRead = message.read(buffer);
+
+                    byte[] ctrArray = ctr.toByteArray();
+                    int startPos = 0;
+                    int length = (getBlockSize() / Byte.SIZE) / 2;
+
+                    if((ctrArray.length) - nonce.length > startPos)
+                        startPos = (ctrArray.length) - nonce.length;
+                    else
+                        length = ctrArray.length;
+
+                    System.arraycopy(ctrArray, startPos, nonceCtr,(getBlockSize() / Byte.SIZE) - length ,length);
+                    BitBuffer cipherBlock = BitBuffer.valueOf(nonceCtr);
+
+                    try (BitBuffer decrypted = encryptBlock(cipherBlock, keyBufferTemp)) {
+                        readBuffer.xor(decrypted);
+                        if (bytesRead <= 0) {
+                            bytesAfterUnpadding = unPad(readBuffer);
+                        }
+                        output.write(readBuffer.toByteArray(bytesAfterUnpadding));
+                        cipherBlock.close();
+                    }
+                    ctr = ctr.add(BigInteger.ONE);
+                    System.out.println(ctr);
+                    if(bytesRead < 0) break;
+                }
+            }
+
         }
     }
 
@@ -445,11 +846,23 @@ public abstract class FeistelCipher extends Cipher {
      * @return IV Initialization Vector
      */
     protected BitBuffer getIV() {
-        byte iv[] = new byte[8];
+        byte iv[] = new byte[getBlockSize() / Byte.SIZE];
         ThreadLocalRandom.current().nextBytes(iv);
+
         BitBuffer ivBuffer = new BitBuffer(iv);
         BitBuffer.clearKeyBuffer(iv);
         return ivBuffer;
+    }
+
+    private byte[] getNonce() {
+        byte nonce[] = new byte[(getBlockSize() / Byte.SIZE) / 2];
+        ThreadLocalRandom.current().nextBytes(nonce);
+
+        return nonce;
+    }
+    private void recordNonce(byte[] nonce, OutputStream file) throws IOException {
+        file.write(nonce);
+        BitBuffer.clearKeyBuffer(nonce);
     }
 
     /**
@@ -488,5 +901,11 @@ public abstract class FeistelCipher extends Cipher {
         BitBuffer ivBitBuffer = BitBuffer.valueOf(iv);
         BitBuffer.clearKeyBuffer(iv);
         return ivBitBuffer;
+    }
+
+    protected byte[] readNonce(InputStream file) throws IOException {
+        byte[] nonce = new byte[(getBlockSize() / Byte.SIZE) / 2];
+        file.read(nonce);
+        return nonce;
     }
 }

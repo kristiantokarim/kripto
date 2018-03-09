@@ -58,5 +58,5 @@ public interface Encryptor {
      * <li>If fails to write at the output.</li>
      * </ul>
      */
-    public void encrypt(final InputStream message, final byte[] key, final OutputStream output) throws IOException;
+    public void encrypt(final InputStream message, final byte[] key, final OutputStream output, final String mode) throws IOException;
 }

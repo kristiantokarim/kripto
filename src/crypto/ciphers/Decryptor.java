@@ -58,5 +58,5 @@ public interface Decryptor {
      * <li>If fails to write at the output.</li>
      * </ul>
      */
-    public void decrypt(final InputStream message, final byte[] key, final OutputStream output) throws IOException ;
+    public void decrypt(final InputStream message, final byte[] key, final OutputStream output, final String mode) throws IOException ;
 }

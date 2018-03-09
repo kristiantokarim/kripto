@@ -37,7 +37,6 @@ import java.io.OutputStream;
  * @version 1.0
  */
 public abstract class Cipher implements Encryptor, Decryptor {
-
     /**
      * Encrypts the message.
      *
@@ -59,6 +58,6 @@ public abstract class Cipher implements Encryptor, Decryptor {
      * </ul>
      */
     @Override
-    public abstract void encrypt(final InputStream message, final byte[] key, final OutputStream output) throws IOException;
-    
+    public abstract void encrypt(final InputStream message, final byte[] key, final OutputStream output, final String mode) throws IOException;
+
 }

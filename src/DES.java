@@ -79,19 +79,28 @@ public class DES {
      * </ul>
      */
     public static void main(String[] args) throws IOException, FileNotFoundException, NoSuchAlgorithmException {
-        switch (args[0]) {
-            case "encrypt":
-                encrypt(args[1], args[2], args[3]);
-                break;
-            case "decrypt":
-                decrypt(args[1], args[2], args[3]);
-                break;
-            default:
-                System.err.println("Command not reconized. Options are:");
-                System.err.println("genkey password outputFile");
-                System.err.println("encrypt inputFile keyFile outputFile");
-                System.err.println("decrypt inputFile keyFile outputFile");
+        if (args[0] != null){
+            switch (args[0]) {
+                case "encrypt":
+                    encrypt(args[1], args[2], args[3]);
+                    break;
+                case "decrypt":
+                    decrypt(args[1], args[2], args[3]);
+                    break;
+                default:
+                    System.err.println("Command not reconized. Options are:");
+                    System.err.println("genkey password outputFile");
+                    System.err.println("encrypt inputFile keyFile outputFile");
+                    System.err.println("decrypt inputFile keyFile outputFile");
+            }
         }
+        else{
+            System.err.println("Command not reconized. Options are:");
+            System.err.println("genkey password outputFile");
+            System.err.println("encrypt inputFile keyFile outputFile");
+            System.err.println("decrypt inputFile keyFile outputFile");
+        }
+
     }
 
     /**
@@ -143,7 +152,7 @@ public class DES {
 
         try (InputStream input = new BufferedInputStream(new FileInputStream(inputFileName));
                 OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFileName))) {
-            des.encrypt(input, readKey(passwordFile), output);
+            des.encrypt(input, readKey(passwordFile), output, "CBC");
         }
     }
 
@@ -161,7 +170,7 @@ public class DES {
 
         try (InputStream input = new BufferedInputStream(new FileInputStream(inputFileName));
                 OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFileName))) {
-            des.decrypt(input, readKey(passwordFile), output);
+            des.decrypt(input, readKey(passwordFile), output, "CBC");
         }
     }
 
