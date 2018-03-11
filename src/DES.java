@@ -27,16 +27,12 @@
 
 import crypto.ciphers.Cipher;
 import crypto.ciphers.block.feistel.sbs.SBS;
+import sun.misc.IOUtils;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Scanner;
 
 /**
  * Assignment 1 - CSS 527 A - Fall 2014 UWB
@@ -53,7 +49,7 @@ public class DES {
     /**
      * Cipher to be used for encryption/decryption operations.
      */
-    private static final Cipher des = new SBS();
+    private static SBS des = new SBS();
 
     /**
      * Main function to execute the commands passed by command line.
@@ -131,11 +127,32 @@ public class DES {
      * @throws IOException
      */
     private static byte[] readKey(String passwordFile) throws FileNotFoundException, IOException {
+        StringBuffer buf = new StringBuffer();
+        String str = "";
         try (InputStream file = new BufferedInputStream(new FileInputStream(passwordFile))) {
-            byte buffer[] = new byte[8];
-            file.read(buffer);
-            return buffer;
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(file));
+            while ((str = bufferedReader.readLine()) != null) {
+                buf.append(str + "\n");
+            }
         }
+        int keyLength = 0;
+        for (int i = 0 ; i < buf.length() ;i++) keyLength += buf.charAt(i);
+        keyLength = keyLength / buf.length();
+        StringBuffer bufKey = new StringBuffer();
+        int loop = 0;
+        while(bufKey.length() < keyLength) {
+            if (loop % 2 == 0) {
+                bufKey.append(buf);
+            } else {
+                bufKey.append(buf.reverse());
+            }
+            loop++;
+        }
+        byte [] buffer = Arrays.copyOfRange(bufKey.toString().getBytes(),0, keyLength-1);
+        des.setKeySizeSBS(keyLength);
+        des.setnRoundsSBS(buf.length());
+        des.setBlockSizeSBS(((buf.length() % 4) + 1) * 64);
+        return buffer;
     }
 
     /**
@@ -152,7 +169,7 @@ public class DES {
 
         try (InputStream input = new BufferedInputStream(new FileInputStream(inputFileName));
                 OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFileName))) {
-            des.encrypt(input, readKey(passwordFile), output, "CBC");
+            des.encrypt(input, readKey(passwordFile), output, "CFB");
         }
     }
 
@@ -170,8 +187,15 @@ public class DES {
 
         try (InputStream input = new BufferedInputStream(new FileInputStream(inputFileName));
                 OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFileName))) {
-            des.decrypt(input, readKey(passwordFile), output, "CBC");
+            des.decrypt(input, readKey(passwordFile), output, "CFB");
         }
     }
 
 }
+
+
+// OFB oke
+// CTR oke
+// CFB oke
+// EBC oke
+// CBC oke

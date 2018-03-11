@@ -32,6 +32,7 @@ import crypto.util.BitBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 /**
  * SBS is a symmetric block cipher based on Feistel structure.
@@ -48,9 +49,9 @@ import java.security.SecureRandom;
  */
 public class SBS extends FeistelCipher {
 
-    public static final int N_ROUNDS = 12;
-    public static final int BLOCK_SIZE = 64;
-    public static final int KEY_SIZE = 64;
+    public static int N_ROUNDS = 12;
+    public static int BLOCK_SIZE = 64;
+    public static int KEY_SIZE = 64;
 
     public static enum Modes {
 
@@ -59,6 +60,21 @@ public class SBS extends FeistelCipher {
 
     public SBS() {
         super(N_ROUNDS, BLOCK_SIZE);
+    }
+
+    public void setBlockSizeSBS(int blockSize) {
+        BLOCK_SIZE = blockSize;
+        super.setBlockSize(blockSize);
+
+    }
+
+    public void setKeySizeSBS(int keySize) {
+        KEY_SIZE = keySize;
+    }
+
+    public void setnRoundsSBS(int nRounds) {
+        N_ROUNDS = nRounds;
+        super.setnRounds(nRounds);
     }
 
     @Override

@@ -67,9 +67,9 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public abstract class FeistelCipher extends Cipher {
 
-    private final int nRounds;
-    private final int blockSize;
-    private final int blockMultiplier;
+    private int nRounds;
+    private int blockSize;
+    private int blockMultiplier;
 
     /**
      * Build the Cipher with an specific number of rounds.
@@ -95,6 +95,17 @@ public abstract class FeistelCipher extends Cipher {
         this.blockSize = 64;
         this.blockMultiplier = blockSize / 64;
     }
+
+    public void  setnRounds(int nRounds) {
+        this.nRounds = nRounds;
+    }
+
+    public void setBlockSize(int blockSize) {
+        this.blockMultiplier = blockSize / 64;
+
+    }
+
+
 
     /**
      * Cipher specific initial permutation (IP).
@@ -669,7 +680,6 @@ public abstract class FeistelCipher extends Cipher {
                         cipherBlock.close();
                     }
                     ctr = ctr.add(BigInteger.ONE);
-                    System.out.println(ctr);
                     if(bytesRead < 0) break;
                 }
             }
