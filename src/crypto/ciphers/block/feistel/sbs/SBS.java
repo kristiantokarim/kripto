@@ -85,6 +85,24 @@ public class SBS extends FeistelCipher {
     @Override
     protected BitBuffer getRoundKey(BitBuffer keyBuffer, int round) {
         keyBuffer.shiftCyclicalLeft(1, KEY_SIZE);
+        keyBuffer.matrixFlipHorizontal();
+        keyBuffer.matrixFlipVertical();
+        BitBuffer left = new BitBuffer(KEY_SIZE/2);
+        BitBuffer right = new BitBuffer(KEY_SIZE - KEY_SIZE/2);
+        int leftIndex = 0; int rightIndex = 0;
+        for (int i = 0 ; i < keyBuffer.length() ; i++) {
+            if (i % 2 == 0) {
+                left.set(leftIndex, keyBuffer.get(i));
+                leftIndex++;
+            } else {
+                right.set(rightIndex, keyBuffer.get(i));
+                rightIndex++;
+            }
+        }
+        keyBuffer.overwrite(0, left, KEY_SIZE / 2);
+        keyBuffer.flip(0, KEY_SIZE-1);
+        keyBuffer.overwrite(KEY_SIZE/2, right, KEY_SIZE - KEY_SIZE / 2);
+        keyBuffer.flip(0, KEY_SIZE-1);
         BitBuffer roundKey = (BitBuffer) keyBuffer.clone();
         return  roundKey;
 
@@ -95,9 +113,42 @@ public class SBS extends FeistelCipher {
         if (round == 0) {
             for (int i = 0 ; i <= N_ROUNDS; i++) {
                 keyBuffer.shiftCyclicalLeft(1, KEY_SIZE);
+                keyBuffer.matrixFlipHorizontal();
+                keyBuffer.matrixFlipVertical();
+
+                BitBuffer left = new BitBuffer(KEY_SIZE/2);
+                BitBuffer right = new BitBuffer(KEY_SIZE - KEY_SIZE/2);
+                int leftIndex = 0; int rightIndex = 0;
+                for (int j = 0 ; j < keyBuffer.length() ; j++) {
+                    if (j % 2 == 0) {
+                        left.set(leftIndex, keyBuffer.get(j));
+                        leftIndex++;
+                    } else {
+                        right.set(rightIndex, keyBuffer.get(j));
+                        rightIndex++;
+                    }
+                }
+                keyBuffer.overwrite(0, left, KEY_SIZE / 2);
+                keyBuffer.flip(0, KEY_SIZE-1);
+                keyBuffer.overwrite(KEY_SIZE/2, right, KEY_SIZE - KEY_SIZE / 2);
+                keyBuffer.flip(0, KEY_SIZE-1);
             }
 
         }
+        keyBuffer.flip(0, KEY_SIZE-1);
+        BitBuffer left = new BitBuffer(KEY_SIZE/2);
+        keyBuffer.flip(0, KEY_SIZE-1);
+        BitBuffer right = new BitBuffer(KEY_SIZE - KEY_SIZE/2);
+        left.overwrite(0, keyBuffer, KEY_SIZE / 2);
+        right.overwrite(KEY_SIZE/2, keyBuffer, KEY_SIZE - KEY_SIZE / 2);
+        for (int i = 0 ; i < left.length(); i++) {
+            keyBuffer.set(i*2, left.get(i));
+        }
+        for (int i = 0 ; i < right.length(); i++) {
+            keyBuffer.set(i*2+1, right.get(i));
+        }
+        keyBuffer.matrixFlipVertical();
+        keyBuffer.matrixFlipHorizontal();
         keyBuffer.shiftCyclicalRight(1, KEY_SIZE);
         BitBuffer roundKey = (BitBuffer) keyBuffer.clone();
         return  roundKey;

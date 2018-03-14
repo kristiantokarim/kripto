@@ -150,7 +150,7 @@ public class DES {
         }
         byte [] buffer = Arrays.copyOfRange(bufKey.toString().getBytes(),0, keyLength-1);
         des.setKeySizeSBS(keyLength);
-        des.setnRoundsSBS(buf.length());
+        des.setnRoundsSBS(buf.length() < 12 ? 12 : buf.length());
         des.setBlockSizeSBS(((buf.length() % 4) + 1) * 64);
         return buffer;
     }
